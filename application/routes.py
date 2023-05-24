@@ -1,17 +1,18 @@
 import os
-from flask import render_template, redirect, flash, request,session, url_for
+from flask import render_template, redirect, flash, request,session, url_for,make_response
 from application import app
 from application.utils import *
 import pandas as pd
 from flask_mysqldb import MySQL
 import MySQLdb.cursors
 import re
+from functools import wraps
  
 app.secret_key = 'your secret key'
  
 app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'yourpassword'
+app.config['MYSQL_PASSWORD'] = '219011@np'
 app.config['MYSQL_DB'] = 'trackerlogin'
  
 mysql = MySQL(app)
@@ -20,7 +21,18 @@ mysql = MySQL(app)
 def disp():
     return render_template('display.html')
 
+def no_cache_headers(route_func):
+    @wraps(route_func)
+    def decorated_route(*args, **kwargs):
+        response = make_response(route_func(*args, **kwargs))
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '-1'
+        return response
+    return decorated_route
+
 @app.route('/calculator', methods=['GET', 'POST'])
+@no_cache_headers
 def home():
     if not session.get('logged_in'):
         return redirect('/login')
@@ -49,6 +61,7 @@ def home():
         return render_template('home.html')
 
 @app.route('/detection', methods=['GET', 'POST'])
+@no_cache_headers
 def detection():
     if not session.get('logged_in'):
         return redirect('/login')
@@ -60,6 +73,7 @@ def detection():
     return render_template('detection.html')
 
 @app.route('/monitoring', methods=['GET', 'POST'])
+@no_cache_headers
 def monitoring():
     if not session.get('logged_in'):
         return redirect('/login')
@@ -68,6 +82,7 @@ def monitoring():
     return render_template('monitoring.html',labels=list(df['Name']),values=list(df.BMI))
 
 @app.route('/login', methods =['GET', 'POST'])
+@no_cache_headers
 def login():
     msg = ''
     if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
@@ -80,6 +95,7 @@ def login():
             session['loggedin'] = True
             session['id'] = account['id']
             session['username'] = account['username']
+            session['logged_in'] = True
             msg = 'Logged in successfully !'
             return render_template('home.html', msg = msg)
         else:
@@ -91,6 +107,7 @@ def logout():
     session.pop('loggedin', None)
     session.pop('id', None)
     session.pop('username', None)
+    session.pop('logged_in', None)
     return redirect(url_for('disp'))
  
 @app.route('/register', methods =['GET', 'POST'])
@@ -118,3 +135,4 @@ def register():
     elif request.method == 'POST':
         msg = 'Please fill out the form !'
     return render_template('register.html', msg = msg)
+
